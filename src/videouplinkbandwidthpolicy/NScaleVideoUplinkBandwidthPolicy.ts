@@ -86,10 +86,29 @@ export default class NScaleVideoUplinkBandwidthPolicy implements VideoUplinkBand
       rate = this.idealMaxBandwidthKbps;
     } else if (this.numParticipants <= 4) {
       rate = (this.idealMaxBandwidthKbps * 2) / 3;
-    } else {
+    } else if (this.numParticipants <= 16) {
       rate = ((544 / 11 + 14880 / (11 * this.numParticipants)) / 600) * this.idealMaxBandwidthKbps;
+    } else {
+      rate = 5000 / this.numParticipants;
     }
     return Math.trunc(rate);
+  }
+
+  scaleResolutionDownBy(): number {
+    if (this.hasBandwidthPriority) {
+      return 1;
+    }
+    let scale;
+    if (this.numParticipants <= 4) {
+      scale = 1;
+    } else if (this.numParticipants <= 8) {
+      scale = 1.5;
+    } else if (this.numParticipants <= 16) {
+      scale = 2;
+    } else {
+      scale = 4;
+    }
+    return scale;
   }
 
   setIdealMaxBandwidthKbps(idealMaxBandwidthKbps: number): void {
