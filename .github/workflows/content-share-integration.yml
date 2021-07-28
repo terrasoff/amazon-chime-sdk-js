@@ -17,6 +17,7 @@
     integ-content-share:
       name: Content Share Integration Test
       runs-on: ubuntu-latest
+      if: ${{ github.head_ref != 'release' }}
 
       steps:
         - name: Checkout Package

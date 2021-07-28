@@ -18,6 +18,7 @@
     integ-messaging:
       name: Messaging Integration Test
       runs-on: ubuntu-latest
+      if: ${{ github.head_ref != 'release' }}
 
       steps:
         - name: Checkout Package

@@ -17,6 +17,7 @@
     integ-video:
       name: Video Integration Test
       runs-on: ubuntu-latest
+      if: ${{ github.head_ref != 'release' }}
 
       steps:
         - name: Checkout Package

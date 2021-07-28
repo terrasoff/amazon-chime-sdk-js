@@ -18,6 +18,7 @@
     integ-meeting-readiness:
       name: Meeting Readiness Integration Test
       runs-on: ubuntu-latest
+      if: ${{ github.head_ref != 'release' }}
 
       steps:
         - name: Checkout Package
