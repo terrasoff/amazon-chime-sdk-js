@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AudioVideoControllerState from '../audiovideocontroller/AudioVideoControllerState';
+import Logger from '../logger/Logger';
 import DefaultSDP from '../sdp/DefaultSDP';
 import SignalingClient from '../signalingclient/SignalingClient';
 import SignalingClientEvent from '../signalingclient/SignalingClientEvent';
@@ -95,7 +96,7 @@ export default class SubscribeAndReceiveSubscribeAckTask extends BaseTask {
   private receiveSubscribeAck(): Promise<SdkSubscribeAckFrame> {
     return new Promise((resolve, reject) => {
       class Interceptor implements SignalingClientObserver, TaskCanceler {
-        constructor(private signalingClient: SignalingClient) {}
+        constructor(private signalingClient: SignalingClient, private logger: Logger) {}
 
         cancel(): void {
           this.signalingClient.removeObserver(this);
@@ -107,6 +108,12 @@ export default class SubscribeAndReceiveSubscribeAckTask extends BaseTask {
         }
 
         handleSignalingClientEvent(event: SignalingClientEvent): void {
+          if (event.isConnectionTerminated()) {
+            this.logger.error('SubscribeAndReceiveSubscribeAckTask connection terminated');
+            this.cancel();
+            return;
+          }
+
           if (
             event.type !== SignalingClientEventType.ReceivedSignalFrame ||
             event.message.type !== SdkSignalFrame.Type.SUBSCRIBE_ACK
@@ -122,7 +129,7 @@ export default class SubscribeAndReceiveSubscribeAckTask extends BaseTask {
         }
       }
 
-      const interceptor = new Interceptor(this.context.signalingClient);
+      const interceptor = new Interceptor(this.context.signalingClient, this.context.logger);
       this.context.signalingClient.registerObserver(interceptor);
       this.taskCanceler = interceptor;
     });

@@ -13,6 +13,8 @@ import DefaultRealtimeController from '../../src/realtimecontroller/DefaultRealt
 import TimeoutScheduler from '../../src/scheduler/TimeoutScheduler';
 import DefaultSignalingClient from '../../src/signalingclient/DefaultSignalingClient';
 import SignalingClientConnectionRequest from '../../src/signalingclient/SignalingClientConnectionRequest';
+import SignalingClientEvent from '../../src/signalingclient/SignalingClientEvent';
+import SignalingClientEventType from '../../src/signalingclient/SignalingClientEventType';
 import SignalingClientSubscribe from '../../src/signalingclient/SignalingClientSubscribe';
 import {
   SdkSignalFrame,
@@ -189,9 +191,81 @@ describe('SubscribeAndReceiveSubscribeAckTask', () => {
       expect(settings.audioMuted).to.equal(false);
       expect(settings.audioCheckin).to.equal(false);
     });
+
+    it('should throw reject when the connection is closed while waiting for ack', async () => {
+      await delay(behavior.asyncWaitMs + 10);
+      expect(context.signalingClient.ready()).to.equal(true);
+
+      const task = new SubscribeAndReceiveSubscribeAckTask(context);
+      new TimeoutScheduler(waitTimeMs).start(() => webSocketAdapter.close());
+      try {
+        await task.run();
+        assert.fail();
+      } catch (_err) {}
+    });
+
+    it('should throw reject when receiving closing event while waiting for ack', async () => {
+      await delay(behavior.asyncWaitMs + 10);
+      expect(context.signalingClient.ready()).to.equal(true);
+
+      const task = new SubscribeAndReceiveSubscribeAckTask(context);
+      new TimeoutScheduler(waitTimeMs).start(() => context.signalingClient.closeConnection());
+      try {
+        await task.run();
+        assert.fail();
+      } catch (_err) {}
+    });
+
+    it('should throw reject when receiving error event while waiting for ack', async () => {
+      await delay(behavior.asyncWaitMs + 10);
+      expect(context.signalingClient.ready()).to.equal(true);
+
+      const task = new SubscribeAndReceiveSubscribeAckTask(context);
+      new TimeoutScheduler(waitTimeMs).start(() => {
+        behavior.webSocketSendSucceeds = false;
+        webSocketAdapter.send(new Uint8Array([0]));
+      });
+      try {
+        await task.run();
+        assert.fail();
+      } catch (_err) {}
+    });
   });
 
   describe('cancel', () => {
+    it('should throw reject when receiving failed event while waiting for ack', async () => {
+      await delay(behavior.asyncWaitMs + 200);
+      expect(context.signalingClient.ready()).to.equal(true);
+
+      const task = new SubscribeAndReceiveSubscribeAckTask(context);
+      new TimeoutScheduler(waitTimeMs).start(() => {
+        // @ts-ignore
+        context.signalingClient.sendEvent(
+          new SignalingClientEvent(
+            context.signalingClient,
+            SignalingClientEventType.WebSocketFailed,
+            null
+          )
+        );
+      });
+      try {
+        await task.run();
+        assert.fail();
+      } catch (_err) {}
+    });
+
+    it('should throw reject when the connection is already closed', async () => {
+      await delay(behavior.asyncWaitMs + 20);
+      expect(context.signalingClient.ready()).to.equal(true);
+
+      context.signalingClient.closeConnection();
+      const task = new SubscribeAndReceiveSubscribeAckTask(context);
+      try {
+        await task.run();
+        assert.fail();
+      } catch (_err) {}
+    });
+
     it('should cancel the task and throw the reject', async () => {
       await delay(behavior.asyncWaitMs + 10);
 
